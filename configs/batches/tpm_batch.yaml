@@ -1,0 +1,29 @@
+# Example batch configuration
+# experiments: list of paths to experiment YAMLs (relative to this file)
+
+output_dir: ./logging/batch_results_tpm
+
+models:
+  - /home/david.broczkowski/Beaver/experiments/sort/model.pt
+  - /home/david.broczkowski/Beaver/experiments/reverse/tpm.pt
+  - /home/david.broczkowski/Beaver/experiments/conll/tpm.pt
+
+# Paths to experiment YAMLs, relative to this batch YAML file
+experiments:
+  - ../../experiments/sort/sort.yaml
+  - ../../experiments/reverse/reverse.yaml
+  - ../../experiments/conll/conll.yaml
+
+# Paths to the argument configs created when training the models
+model_configs:
+  - /home/david.broczkowski/TransformerProgramVerification/output/rasp/sort/vocab8maxlen8/transformer_program/headsc4headsn4nlayers3cmlpsnmlps/s0/args.json
+  - /home/david.broczkowski/TransformerProgramVerification/output/rasp/reverse/vocab8maxlen8/transformer_program/headsc4headsn4nlayers3cmlpsnmlps/s0/args.json
+  - /home/david.broczkowski/TransformerProgramVerification/output/conll_ner/transformer_program/nvars4nheads8nlayers2nmlps1/epochs50/s0/args.json
+
+model_type: program
+
+execution:
+  stop_on_failure: true
+  max_retries: 0
+  cooldown_between_experiments: 10
+  skip_completed: false
