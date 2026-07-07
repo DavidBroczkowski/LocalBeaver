@@ -15,7 +15,6 @@ from beaver.verifiers.logits_verifier import LogitsVerifier
 from beaver.constraints.base_constraints import register_constraint
 from beaver.utils.tokenizer_utils import normalize_sent
 
-
 def _default_check_call_fn(_inst, seqs, _toks):
     return np.ones(len(seqs), dtype=bool)
 
@@ -45,6 +44,7 @@ def _prepare_dataset_from_prompts(prompts: list[dict]):
 def run(
     *,
     prompts: list[dict],
+    vocab_size: int | None = None,
     constraint_fn: Callable,
     check_call_fn: Callable | None = None,
     cache: bool = False,
@@ -71,6 +71,7 @@ def run(
     system_message: str | None = None,
     fewshot_messages: list | None = None,
     glove_embed: bool = False,
+    seed: int = 0,
     # Grammar / semantic symbol
     grammar: str | None = None,
     semantic_symbol: str | None = None,
@@ -120,6 +121,12 @@ def run(
     Returns:
         List of per-instance result dicts.
     """
+
+    # set seeds
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+
     if prompts is None:
         raise ValueError("'prompts' is required.")
     if constraint_fn is None:
@@ -155,6 +162,7 @@ def run(
 
     return _run_inner(
         dataset=ds,
+        vocab_size=vocab_size,
         dataset_name=effective_dataset_name,
         use_cache=cache,
         model=model,
@@ -221,6 +229,7 @@ class _TeeStream:
 
 def _run_inner(
     dataset,
+    vocab_size,
     dataset_name,
     use_cache,
     model,
@@ -260,6 +269,7 @@ def _run_inner(
             model_type=model_type,
             model_args=model_args,
             dataset=dataset_name,
+            vocab_size=vocab_size,
             verifier=verifier,
             gen_length=gen_length,
             temperature=temperature,
@@ -284,6 +294,7 @@ def _run_inner(
         # ── Instantiate and run verifier ───────────────────────────────────────
         common_kwargs = dict(
             grammar=grammar,
+            vocab_size=vocab_size,
             gen_length=gen_length,
             temperature=temperature,
             top_p=top_p,
