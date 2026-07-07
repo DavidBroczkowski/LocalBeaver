@@ -1,0 +1,1 @@
+beaver run --experiment experiments/sort/sort.yaml --model experiments/sort/sort_standard.pt --verifier frontier --glove_embed 0 --gpu_uuid GPU-96f047f6-0272-02db-e089-678debe69d9b --max_workers 1 --model_args /home/david.broczkowski/TransformerProgramVerification/output/rasp/sort/standard_transformer/dmodel64nheadsnlayers3/s0/args.json --model_type transformer

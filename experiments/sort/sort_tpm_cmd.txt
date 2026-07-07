@@ -1,0 +1,1 @@
+beaver run --experiment experiments/sort/sort.yaml --model experiments/sort/model.pt --verifier frontier --glove_embed 0 --gpu_uuid GPU-96f047f6-0272-02db-e089-678debe69d9b --max_workers 1 --model_args /home/david.broczkowski/TransformerProgramVerification/output/rasp/sort/vocab8maxlen8/transformer_program/headsc4headsn4nlayers3cmlpsnmlps/s0/args.json --model_type program
