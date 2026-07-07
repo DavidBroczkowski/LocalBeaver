@@ -104,4 +104,4 @@ def embed(doc, idx_emb):
     if not isinstance(doc, list):
         print("[ERROR] To embed a document, it must be in the form of a list of tokens")
         return
-    return torch.stack(idx_emb[doc])
+    return torch.tensor(idx_emb[doc])
