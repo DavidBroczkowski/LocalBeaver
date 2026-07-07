@@ -5,7 +5,7 @@ import time
 import numpy as np
 
 from beaver.constraints.base_constraints import enforce_semantic_constraint
-from beaver.utils import log_json
+from beaver.utils.utils import log_json
 from beaver.verifiers.base_verifier import BaseVerifier
 from beaver.verifiers.worker_common import (
     _w,
