@@ -49,6 +49,7 @@ def enforce_semantic_constraint(
     use_cache: bool = True,
 ) -> np.ndarray:
     _, instance_context_fn, check_fn = _REGISTRY[dataset_name]
+    # print(f"[DEBUG] cache usage: {use_cache}")
     if not use_cache:
         return _run_checks(instance, list(np.asarray(decoded_sequences)), check_fn, timeout)
     cache = _get_cache(dataset_name)
@@ -81,6 +82,7 @@ def _enforce(instance, decoded_sequences, cache: SemanticConstraintCache, instan
 
 def _run_checks(instance, sequences, check_fn, timeout):
     results = []
+    # print(f"[DEBUG] sequences @ _run_checks: {sequences}")
     with ThreadPoolExecutor(max_workers=1) as executor:
         # important, for each sequence, run the check function which returns a boolean value, True or False
         for seq in sequences:
