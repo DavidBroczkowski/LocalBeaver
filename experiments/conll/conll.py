@@ -1,12 +1,13 @@
 """CoNLL Experiment - model must correctly classify proper nouns via named entity recoginition"""
 import json
 import torch
+import numpy as np
 from pathlib import Path
 
 DATASET_NAME = "conll"
 
 _DATA_DIR = Path(__file__).parent / "data"
-_DEFAULT_DATASET_PATH = str(_DATA_DIR / "test.json")
+_DEFAULT_DATASET_PATH = str(_DATA_DIR / "train.json")
 
 def load_input_rows():
     """
@@ -19,13 +20,14 @@ def load_input_rows():
         data = json.load(file)
         return data
 
-def load_prompts(**kwargs) -> list[dict]:
+def load_prompts(start_idx: int = 0, end_idx: int = -1, **kwargs) -> list[dict]:
     data = load_input_rows()
     inputs = data["inputs"]
     tags = data["tags"]
 
     instances = []
-    for i in range(len(inputs)):
+    end = end_idx if end_idx != -1 else len(inputs)
+    for i in range(start_idx, end):
         instances.append(
             {
                 "prompt": inputs[i],
@@ -38,15 +40,19 @@ def load_prompts(**kwargs) -> list[dict]:
 
 def constraint_fn(instance: dict, sequence: str) -> bool:
     """True = acceptable, False = violation."""
-    return sequence == instance["tags"]
+    # print("RUNNING CONSTRAINT_FN")
+    # print(f"[DEBUG] sequence after split: {sequence.split()}")
+    # print(f"[DEBUG] tags: {instance['tags']}")
+    # print(f"[DEBUG] equality: {sequence.split() == instance['tags']}")
+    return sequence.split() == instance["tags"]
 
 def check_call_fn(instance, decoded_sequences, token_lists):
     """Optional fast pre-filter — skip expensive checks on short prefixes."""
-    return True
+    return np.zeros(len(decoded_sequences), dtype=bool)
 
 def instance_context_fn(instance: dict) -> str:
     """Cache key for this instance's constraint context."""
-    return ""
+    return ",".join(instance["tags"])
 
 if __name__ == "__main__":
     import argparse
