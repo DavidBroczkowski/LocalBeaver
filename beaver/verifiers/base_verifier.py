@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 import torch
 import sys
+import csv
 
 from tqdm import tqdm
 from beaver.utils.tokenizer_utils import NLTK_Tokenizer
@@ -66,7 +67,7 @@ class BaseVerifier(ABC):
         self.dataset_name = dataset
         self.use_cache: bool = kwargs.get("use_cache", True)
 
-        self.tokenizer = NLTK_Tokenizer(prompts)
+        self.tokenizer = NLTK_Tokenizer(prompts, kwargs.get("glove_embed", 0), vocab_size=kwargs.get("vocab_size", None))
         self.semantic_symbol = semantic_symbol
 
         self.model_name = model
@@ -91,6 +92,7 @@ class BaseVerifier(ABC):
         self.system_message = kwargs.get("system_message", None)
         self.fewshot_messages = kwargs.get("fewshot_messages", [])
         self.glove_embed = kwargs["glove_embed"]
+        self.model_type = kwargs["model_type"]
 
     def _build_worker_config(self):
         """Build a pickleable config dict for init_worker_state()."""
