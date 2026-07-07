@@ -4,6 +4,7 @@ import time
 import torch
 import json
 import numpy as np
+import sys
 
 from beaver.constraints.base_constraints import (
     check_semantic_call,
@@ -25,6 +26,7 @@ from beaver.verifiers.worker_common import (
     init_worker_state,
     log_profiling,
     model_generate_next_token_logprobs,
+    model_generate_logprobs_transformer,
     safe_worker,
     worker_setup,
 )
@@ -111,9 +113,13 @@ def _worker_process_instance(args):
         )
 
         # Determine completion flags
+        # FIXME: tag with index 3 is being falsely added to eos_tokens
         if len(previous_element.tokens) >= _w.gen_length - 1:
             complete_flag = np.ones(len(decoded_sequences), dtype=bool)
         else:
+            # print(f"[DEBUG] t_idx: {_w.tokenizer.t_idx}")
+            # print(f"[DEBUG] _w.eos_tokens: {_w.eos_tokens}")
+            # print(f"[DEBUG] early completion: {[i in _w.eos_tokens for i in valid_indices]}")
             complete_flag = np.array(
                 [i in _w.eos_tokens for i in valid_indices], dtype=bool
             )
@@ -139,6 +145,7 @@ def _worker_process_instance(args):
         semantic_correct_indices = np.array([], dtype=np.intp)
         if len(semantic_check_indices) > 0:
             sequences_to_check = decoded_sequences[semantic_check_indices]
+            # print(f"[DEBUG] sequences_to_check @ frontier_verifier.py: {sequences_to_check}")
             semantic_correctness_mask = enforce_semantic_constraint(
                 _w.dataset_name, instance, sequences_to_check, use_cache=_w.use_cache
             )
@@ -226,11 +233,14 @@ def _worker_process_instance(args):
             instance, element.tokens
         )
 
+        #print(f"[DEBUG] probs before top: {model_logprobs}")
+
         # apply top-p and top-k, no need to change this here
         # Note: for RASP tasks, our model is very good, with probs around 0.99 for a certain token
         # therefore, this step will usually limit the Frontier to the correct answer
         # and will have a low number of leaves in it as a result
         logprobs, reduced_logprobs = apply_top_p_top_k(model_logprobs)
+        #print(f"[DEBUG] probs after top: {logprobs}")
 
         # Calculate pruned prob (from tokens that are not counted)
         culled_prob_sum = np.exp(element.logprob) * max(
@@ -404,6 +414,12 @@ class FrontierVerifier(BaseVerifier):
                 model_args_dict['n_ctx'] = model_args_dict['max_length']
             if 'd_vocab_out' not in model_args_dict and 'unembed.W_U' in state_dict:
                 model_args_dict['d_vocab_out'] = state_dict['unembed.W_U'].shape[1]
+            # Infer vocab size from checkpoint embedding rather than args.json
+            if 'embed.W_E' in state_dict:
+                model_args_dict['vocab_size'] = state_dict['embed.W_E'].shape[1]
+            print(f"[DEBUG] d_vocab_out: {model_args_dict['d_vocab_out']}")
+            print(f"[DEBUG] vocab_size: {model_args_dict['vocab_size']}")
+
             loaded_model = Transformer(
                 d_vocab=model_args_dict['vocab_size'],
                 idx_t=self.tokenizer.idx_t,
