@@ -3,6 +3,7 @@ from nltk.tokenize import word_tokenize
 import nltk
 from llguidance import TokenizerWrapper, LLTokenizer
 import numpy as np
+import csv
 
 BOS = "<s>"
 EOS = "</s>"
@@ -19,7 +20,7 @@ class NLTK_Tokenizer:
         - idx_w: a NumPy array where the input of an index returns a word. Maps indices to words
         - w_idx: a dictionary mapping words to their indices.
     """
-    def __init__(self, train):
+    def __init__(self, train, unk, tokenizer_path=None, vocab_size=None):
         """
         Initializes the class and its attributes
 
@@ -28,8 +29,8 @@ class NLTK_Tokenizer:
                      Each dict must have a "prompt" key structured as a list of tokenized or separated words
         """
 
-        # initialize tokenizer
-        idx_w, w_idx, idx_t, t_idx = self.get_tokenizer(train)
+        idx_w, w_idx, idx_t, t_idx = self.get_tokenizer(train, vocab_size=vocab_size, unk=unk)
+
         self.idx_w = idx_w
         self.w_idx = w_idx
         self.t_idx = t_idx
@@ -56,7 +57,7 @@ class NLTK_Tokenizer:
             words.append(w)
         if vocab_size:
             words += [w for w, _ in counts.most_common() if w not in words][
-                :vocab_size
+                :int(vocab_size)
             ]
         else:
             words += sorted(c for c in counts.keys() if c not in words)
@@ -70,6 +71,7 @@ class NLTK_Tokenizer:
         t_idx = {t: i for i, t in enumerate(idx_t)}
 
         return idx_w, w_idx, idx_t, t_idx
+
 
     def tokenize(self, sents, max_len=None):
         """
@@ -91,16 +93,18 @@ class NLTK_Tokenizer:
             out.append(t)
         return np.stack(out, 0)
 
+    # Note: change from w_idx to t_idx as before we assumed that the input space and output space were equivalent
+    # however, due to our changes, that is no longer the case, so we should instead return based on the output space
     @property
     def eos_token_id(self):
-        return self.w_idx.get(EOS, None)
+        return self.t_idx.get(EOS, None)
 
     @property
     def pad_token_id(self):
-        return self.w_idx.get(PAD, None)
+        return self.t_idx.get(PAD, None)
 
     def decode(self, idxs, skip_special_tokens=False):
-        out = [self.idx_w[idx] for idx in idxs]
+        out = [self.idx_t[idx] for idx in idxs]
         if skip_special_tokens:
             special = {PAD, BOS, EOS, SEP, UNK}
             out = [t for t in out if t not in special]
