@@ -1,9 +1,10 @@
 """BEAVER command-line interface.
 
 Sub-commands:
-  beaver run    — run a single verification experiment (experiment YAML)
-  beaver batch  — orchestrate batch experiments across models
-  beaver logs   — summarise an existing run-logs directory
+  beaver run       — run a single verification experiment (experiment YAML)
+  beaver batch     — orchestrate batch experiments across models
+  beaver rct-batch — orchestrate batch experiments across models with RCT architecture
+  beaver logs      — summarise an existing run-logs directory
 """
 
 import argparse
@@ -85,6 +86,7 @@ _BEAVER_RUN_KEYS = frozenset(
         "gpu_uuid",
         "model_type",
         "model_args",
+        "vocab_size",
     }
 )
 
@@ -175,6 +177,8 @@ def _run_cmd(argv):
     parser.add_argument("--log_dir", type=str, default=None)
     parser.add_argument("--glove_embed", type=int, default=None)
     parser.add_argument("--gpu_uuid", type=str, default=None)
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--vocab_size", type=str, default=None)
 
     args = parser.parse_args(argv)
 
@@ -283,6 +287,32 @@ def _batch_cmd(argv):
     )
     sys.exit(0 if success else 1)
 
+def _rct_batch_cmd(argv):
+    """Batch experiments — orchestrate multiple experiments across models with RCT architecture."""
+    parser = argparse.ArgumentParser(
+        prog="RCT beaver batch",
+        description="Orchestrate batch BEAVER experiments across models with RCT architecture.",
+    )
+    parser.add_argument("--batch", type=str, required=True, help="Path to batch YAML.")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
+    args = parser.parse_args(argv)
+
+    batch_path = Path(args.batch).resolve()
+    if not batch_path.exists():
+        print(f"Error: batch config not found: {batch_path}", file=sys.stderr)
+        sys.exit(1)
+
+    from beaver.batch_runner_rct import load_batch_config, run_batch
+
+    batch_cfg = load_batch_config(batch_path)
+    success = run_batch(
+        batch_cfg,
+        batch_path,
+        dry_run=args.dry_run,
+        verbose=args.verbose,
+    )
+    sys.exit(0 if success else 1)
 
 # ── beaver logs ───────────────────────────────────────────────────────────
 
@@ -325,7 +355,7 @@ def main(argv=None):
     )
     parser.add_argument(
         "command",
-        choices=["run", "batch", "logs"],
+        choices=["run", "batch", "rct-batch" "logs"],
         help="Sub-command to execute.",
     )
 
@@ -340,6 +370,8 @@ def main(argv=None):
         _run_cmd(rest)
     elif cmd == "batch":
         _batch_cmd(rest)
+    elif cmd == "rct-batch":
+        _rct_batch_cmd(rest)
     elif cmd == "logs":
         _logs_cmd(rest)
     else:
