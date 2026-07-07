@@ -39,7 +39,6 @@ def init_worker_state(config_dict):
     keep a reference to the same object.
     """
 
-    print(f"[DEBUG] config_dict: {config_dict}")
     # Clear any previous state without reassigning the object
     _w.__dict__.clear()
 
@@ -124,14 +123,10 @@ def build_prompt(instance, continuation):
     if _w.verbose:
         print("[DEBUG] Embedding prompt...")
 
-    if _w.glove_embed:
-        if continuation:
-            return embed(prompt_token_ids + continuation)
-        return embed(prompt_token_ids)
-    else:
-        if continuation:
-            return prompt_token_ids + continuation
-        return prompt_token_ids
+    # Note to self, architectures handle GLoVe conversion within their classes, so no need to do that here
+    if continuation:
+        return prompt_token_ids + continuation
+    return prompt_token_ids
 
 
 # ---------------------------------------------------------------------------
@@ -246,36 +241,29 @@ def model_generate_next_token_logprobs(instance, continuation):
         output_pos = k + 1
         max_output_pos = all_logits.shape[0] - 1  # exclude trailing </s> position
 
-        word_vocab_size = len(_w.tokenizer.idx_w)
-        log_probs_remapped = np.full(word_vocab_size, -1e9, dtype=np.float64)
+        d_vocab_out = len(_w.tokenizer.idx_t)
 
         if output_pos < max_output_pos:
-            logits_k = all_logits[output_pos]  # [d_vocab_out]
-            tag_log_probs = (
-                torch.nn.functional.log_softmax(logits_k.float(), dim=-1)
+            log_probs = (
+                torch.nn.functional.log_softmax(all_logits[output_pos].float(), dim=-1)
                 .numpy()
             )
-            # Scatter tag-vocab log-probs into the word-vocab slots.
-            for tag_idx, word_idx in enumerate(_w.tag_to_word):
-                log_probs_remapped[word_idx] = tag_log_probs[tag_idx]
         else:
-            # Beyond the model's output length: signal end-of-sequence via </s>.
-            # Has to happen because a TPM does not have EOS in its vocab, and is non-autoregressive
-            eos_id = _w.tokenizer.w_idx.get("</s>", 1)
-            log_probs_remapped[eos_id] = 0.0
-
-        if _w.verbose:
-            print(f"[DEBUG] Generation step k={k}, output_pos={output_pos}")
+            log_probs = np.full(d_vocab_out, -1e9, dtype=np.float64)
+            eos_id = _w.tokenizer.t_idx.get("<sep>", 0)
+            log_probs[eos_id] = 0.0
 
         logprobs_w_ids = np.column_stack([
-            np.arange(word_vocab_size, dtype=np.float64),
-            log_probs_remapped,
+            np.arange(d_vocab_out, dtype=np.float64),
+            log_probs,
         ])
 
         return logprobs_w_ids, prompt_token_ids
 
     except Exception as e:
+        import traceback
         print(f"[ERROR] An error occurred when attempting to compute the next token log probabilities, {e}")
+        traceback.print_exc()
 
 def model_generate_logprobs(instance):
     """Get next-token logprobs from the local TransformerProgram model.
