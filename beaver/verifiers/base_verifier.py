@@ -101,6 +101,7 @@ class BaseVerifier(ABC):
         check_call_fn, instance_context_fn, check_fn = _REGISTRY[self.dataset_name]
         return {
             "model_name": self.model_name,
+            "model_type": self.model_type,
             "ebnf": self.ebnf,
             "dataset_name": self.dataset_name,
             "use_cache": self.use_cache,
