@@ -26,7 +26,6 @@ from beaver.verifiers.worker_common import (
     init_worker_state,
     log_profiling,
     model_generate_next_token_logprobs,
-    model_generate_logprobs_transformer,
     safe_worker,
     worker_setup,
 )
@@ -113,7 +112,6 @@ def _worker_process_instance(args):
         )
 
         # Determine completion flags
-        # FIXME: tag with index 3 is being falsely added to eos_tokens
         if len(previous_element.tokens) >= _w.gen_length - 1:
             complete_flag = np.ones(len(decoded_sequences), dtype=bool)
         else:
@@ -379,6 +377,10 @@ class FrontierVerifier(BaseVerifier):
             "frontier_scoring_strategy", "highest-prob"
         )
 
+        # if using code, no need to load anything, so return
+        if kwargs["model_type"] == "code":
+            return
+
         model = self.model_name
         # load model
         with open(kwargs["model_args"], 'r') as args_file:
@@ -417,8 +419,7 @@ class FrontierVerifier(BaseVerifier):
             # Infer vocab size from checkpoint embedding rather than args.json
             if 'embed.W_E' in state_dict:
                 model_args_dict['vocab_size'] = state_dict['embed.W_E'].shape[1]
-            print(f"[DEBUG] d_vocab_out: {model_args_dict['d_vocab_out']}")
-            print(f"[DEBUG] vocab_size: {model_args_dict['vocab_size']}")
+
 
             loaded_model = Transformer(
                 d_vocab=model_args_dict['vocab_size'],
@@ -427,7 +428,7 @@ class FrontierVerifier(BaseVerifier):
             )
         else:
             raise ValueError(
-                f"model_type must be \"program\" or \"transformer\", got {kwargs['model_type']!r}"
+                f"model_type must be \"program\", \"transformer\", or \"code\", got {kwargs['model_type']!r}"
             )
 
         loaded_model.load_state_dict(state_dict)
