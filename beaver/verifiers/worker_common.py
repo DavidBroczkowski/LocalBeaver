@@ -42,7 +42,8 @@ def init_worker_state(config_dict):
     # Clear any previous state without reassigning the object
     _w.__dict__.clear()
 
-    _w.model_name = config_dict["model_name"]  # Store model (parent nn.Module)
+    _w.model_name = config_dict["model_name"]  # Store model (parent nn.Module or path for code)
+    _w.model_type = config_dict["model_type"]
     _w.tokenizer = config_dict["tokenizer"]
     _w.lltokenizer = initialize_llguidance(_w.tokenizer.w_idx, _w.tokenizer.idx_w)
     _w.vocab_size = config_dict["vocab_size"]  # Store total vocab size including special tokens
@@ -132,63 +133,6 @@ def build_prompt(instance, continuation):
 # ---------------------------------------------------------------------------
 # model_generate — get logprobs from model
 # ---------------------------------------------------------------------------
-def model_generate_logprobs_transformer(instance, continuation):
-    """Get next-token logprobs from the local Transformer model.
-
-    The model outputs over d_vocab_out tag-vocab classes.  We remap those
-    indices to the word-vocab indices BEAVER uses throughout via _w.tag_to_word.
-
-    Args:
-        instance: Instance dict with ``prompt`` as a list of str tokens
-                  (already normalised with BOS/EOS by _prepare_dataset).
-        continuation: List of word-vocab token IDs generated so far.
-
-    Returns:
-        (np.ndarray, list): logprobs_array of shape [word_vocab_size, 2] with
-        columns [word_token_id, logprob], and the prompt token-ID list.
-    """
-    seq_len = x.shape[1]
-
-    # Convert instance into a prompt made of token ids
-    prompt_token_ids = build_prompt(instance = instance, continuation = continuation)
-
-    if _w.verbose:
-            print(f"[DEBUG] Prompt token IDs: {prompt_token_ids}")
-    
-    prompt_key = tuple(prompt_token_ids)
-
-    if _w.verbose:
-        print("[DEBUG] Cache miss — running forward pass...")
-
-    # get model
-    model = _w.model_name
-
-    # convert to tensor
-    x = torch.tensor(prompt_token_ids, dtype=torch.long).unsqueeze(0)
-
-    # run on model
-    mask = torch.ones(seq_len, dtype=torch.bool).unsqueeze(0)
-    with torch.no_grad():
-        logits = model(x.to(model.device), mask=mask.to(model.device))
-
-    tag_log_probs = torch.nn.functional.log_softmax(logits.float(), dim=-1)
-
-    # create vector for the indexes and then combine with the logits
-    word_vocab_size = len(_w.tokenizer.idx_w)
-    log_probs_remapped = np.full(word_vocab_size, -1e9, dtype=np.float64)
-
-    # map tag indices to word indices 
-    for tag_idx, word_idx in enumerate(_w.tag_to_word):
-        log_probs_remapped[word_idx] = tag_log_probs[tag_idx]
-    
-    # combine word indices and log probs
-    logprobs_w_ids = np.column_stack([
-        np.arange(word_vocab_size, dtype=np.float64),
-        log_probs_remapped,
-    ])
-
-    return logprobs_w_ids, prompt_token_ids
-
 
 def model_generate_next_token_logprobs(instance, continuation):
     """Get next-token logprobs from the local TransformerProgram model.
@@ -222,17 +166,35 @@ def model_generate_next_token_logprobs(instance, continuation):
         if prompt_key not in _w._logit_cache:
             if _w.verbose:
                 print("[DEBUG] Cache miss — running forward pass...")
-            model = _w.model_name
-            x = torch.tensor(prompt_token_ids, dtype=torch.long).unsqueeze(0)
-            seq_len = x.shape[1]
-            # Full (non-causal) attention: each output position must see all
-            # input positions simultaneously for the RASP sort algorithm to
-            # compute element ranks correctly.
-            mask = torch.ones(seq_len, seq_len, dtype=torch.bool).unsqueeze(0)
-            with torch.no_grad():
-                logits = model(x.to(model.device), mask=mask.to(model.device))
-            # Store [seq_len, d_vocab_out] on CPU; drop the batch dim.
-            _w._logit_cache[prompt_key] = logits[0].cpu()
+            
+            #FIXME: add this param
+            if _w.model_type == "code":
+                import importlib.util
+
+                spec = importlib.util.spec_from_file_location("_dynamic_module", _w.model_name)
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+
+                code_logits = torch.tensor(mod.run(instance["prompt"]), dtype=torch.float32) # does not have PAD and UNK, 2 less than expected
+            
+                d_vocab_out = len(_w.tokenizer.idx_t)
+                unembed_mask = torch.tensor([t in ("<unk>", "<pad>") for t in _w.tokenizer.idx_t])  # [d_vocab_out]
+                logits_full = torch.full((code_logits.shape[0], d_vocab_out), -1e30)
+                logits_full[:, ~unembed_mask] = code_logits # scatters values into positions, now expected output length compard to len(idx_t)
+
+                _w._logit_cache[prompt_key] = logits_full.cpu()
+            else:
+                model = _w.model_name
+                x = torch.tensor(prompt_token_ids, dtype=torch.long).unsqueeze(0)
+                seq_len = x.shape[1]
+                # Full (non-causal) attention: each output position must see all
+                # input positions simultaneously for the RASP sort algorithm to
+                # compute element ranks correctly.
+                mask = torch.ones(seq_len, seq_len, dtype=torch.bool).unsqueeze(0)
+                with torch.no_grad():
+                    logits = model(x.to(model.device), mask=mask.to(model.device))
+                # Store [seq_len, d_vocab_out] on CPU; drop the batch dim.
+                _w._logit_cache[prompt_key] = logits[0].cpu()
 
         all_logits = _w._logit_cache[prompt_key]  # [seq_len, d_vocab_out]
 
@@ -310,28 +272,20 @@ def model_generate_logprobs(instance):
 
         output_logits = _w._logit_cache[prompt_key][1:-1] # [N-2, d_vocab_out]
 
-        # create a mask?
         N_out, V = output_logits.shape
 
-        log_probs_remapped = np.full((N_out, V), -1e9, dtype=np.float64) # holds our probs
-        tag_log_probs = torch.nn.functional.log_softmax(output_logits, dim=-1).numpy() # softmax logits
+        tag_log_probs = torch.nn.functional.log_softmax(output_logits, dim=-1).numpy()  # [N_out, V]
 
-        # create a NumPy array for the token ids
-        token_ids = np.broadcast_to(np.arange(V, dtype=np.float64), (N_out, V))  # [N-2, V]
+        token_ids = np.broadcast_to(np.arange(V, dtype=np.float64), (N_out, V))  # [N_out, V]
 
-        # convert tag index to word index
-        log_probs_remapped = np.full(
-            (N_out, V), -1e9, dtype=np.float64
-        )  # [N-2, V]
-        log_probs_remapped[:, _w.tag_to_word] = tag_log_probs
-
-        model_logprobs = np.stack([token_ids, log_probs_remapped], axis=-1)       # [N-2, V, 2]
+        model_logprobs = np.stack([token_ids, tag_log_probs], axis=-1)  # [N_out, V, 2]
 
         return model_logprobs, prompt_token_ids
 
     except Exception as e:
+        import traceback
         print(f"[ERROR] An error occurred when attempting to compute the next token log probabilities, {e}")
-        
+        traceback.print_exc()
 # ---------------------------------------------------------------------------
 # worker_setup — shared boilerplate at the start of _worker_process_instance
 # ---------------------------------------------------------------------------
