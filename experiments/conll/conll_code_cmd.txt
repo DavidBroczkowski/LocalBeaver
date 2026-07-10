@@ -1,0 +1,1 @@
+beaver run --experiment experiments/conll/conll.yaml --model experiments/conll/conll_ner.py --verifier frontier --glove_embed 1 --max_workers 1 --vocab_size 10000 --model_type code

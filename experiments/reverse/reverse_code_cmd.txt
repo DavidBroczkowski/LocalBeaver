@@ -1,0 +1,1 @@
+beaver run --experiment experiments/reverse/reverse.yaml --model experiments/reverse/reverse_program.py --verifier frontier --glove_embed 0 --max_workers 1 --model_type code
