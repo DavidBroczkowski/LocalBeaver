@@ -25,7 +25,6 @@ dependencies = [
     "pandas",
     "llguidance",
     "z3-solver",
-    # "vllm>=0.15.1",
 ]
 
 [project.optional-dependencies]
@@ -33,10 +32,11 @@ classifiers = ["fastapi", "uvicorn", "pydantic", "detoxify", "semgrep"]
 
 [project.scripts]
 beaver = "beaver.cli:main"
+tpm-opt = "tpm_optimizer.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["beaver*"]
+include = ["beaver*", "tpm_optimizer*"]
 
 [tool.setuptools.package-data]
 beaver = [
