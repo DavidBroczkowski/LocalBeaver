@@ -131,8 +131,8 @@ def _run_cmd(argv):
 
     # Model
     parser.add_argument("--model", type=str, required=True)
-    parser.add_argument("--model_type", type=str, required=True)
-    parser.add_argument("--model_args", type=str, required=True)
+    parser.add_argument("--model_type", type=str, required=True, choices=["transformer", "program", "code"])
+    parser.add_argument("--model_args", type=str, default=None)
 
     # Data slicing (forwarded to load_prompts_fn)
     parser.add_argument("--start_idx", type=int, default=None)
@@ -240,8 +240,11 @@ def _run_cmd(argv):
     import beaver
 
     # set GPU
-    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_uuid or "0"
-    print(f"[DEBUG] Using GPU {torch.cuda.get_device_name()} with properties {torch.cuda.get_device_properties()}")
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_uuid or ""
+    if torch.cuda.is_available():
+        print(f"[DEBUG] Using GPU {torch.cuda.get_device_name()} with properties {torch.cuda.get_device_properties()}")
+    else:
+        print(f"[INFO] CUDA is unavailable, using CPU")
 
     beaver.run(
         prompts=prompts,
