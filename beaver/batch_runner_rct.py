@@ -404,16 +404,17 @@ def run_batch(
         model_path = Path(model_paths[i])
         model_config_path = model_config_paths[i]
         exp_cfg = exp_cfgs[i]
-        model_name = str(model_path.parent / model_path.stem)
+        #FIXME: there has to be a more elegant way of doing this .-.
+        model_name = str(Path(model_path.parent).stem + "/" + model_path.stem + "/" + model_type + "/logits")
 
         _log(
             f"Model [{i+1}/{len(model_paths)}]: {model_name}  (config: {model_config_path})"
         )
 
         model_log_dir = output_dir / model_name
+        print(f"[DEBUG] output_dir: {output_dir}, model_name: {model_name}, model_log_dir: {model_log_dir}")
         exp_name = exp_cfg["_name"]
         exp_log_dir = model_log_dir
-
 
         # skip those that have already been done if requested
         if skip_completed:
@@ -502,5 +503,5 @@ def run_batch(
     if _log_fh is not None:
         _log_fh.close()
         _log_fh = None
-    
+
     return ok_count == total
