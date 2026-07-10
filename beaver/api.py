@@ -52,7 +52,7 @@ def run(
     instance_context_fn: Callable | None = None,
     model: str,
     model_type: str,
-    model_args: str,
+    model_args: str | None = None,
     # Experiment params
     verifier: str = "frontier",
     gen_length: int = 32,
@@ -334,7 +334,7 @@ def _run_inner(
             )
         else:
             raise ValueError(
-                f"Unknown verifier: '{verifier}'. Choose 'frontier' or 'sampling'."
+                f"Unknown verifier: '{verifier}'. Choose 'frontier', 'sampling', or 'logits'."
             )
         
 
