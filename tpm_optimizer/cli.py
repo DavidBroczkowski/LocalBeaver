@@ -12,6 +12,7 @@ from pathlib import Path
 import os
 import torch
 import yaml
+import tpm_optimizer
 
 # Keys in experiment YAML that are meta/structural (never passed to load_prompts or run)
 _YAML_META_KEYS = frozenset(
@@ -60,9 +61,17 @@ _TPM_OPT_RUN_KEYS = frozenset(
     {
         "code_path",
         "dataset",
-        "num_instances",
+        "num_instances_llm",
+        "num_instances_verify",
         "num_children",
-        "max_steps"
+        "max_steps",
+        "log_dir",
+        "dry_run",
+        "api_key",
+        "llm_model",
+        "temperature",
+        "max_tokens",
+        "timeout",
     }
 )
 
@@ -130,9 +139,35 @@ def _run_cmd(argv):
     # Optimizer arguments
     parser.add_argument("--code_path", type=str, required=True)
     parser.add_argument("--dataset", type=str, required=True)
-    parser.add_argument("--num_instances", type=int, default=100)
+    parser.add_argument("--num_instances_llm", type=int, default=100)
+    parser.add_argument("--num_instances_verify", type=int, default=500)
     parser.add_argument("--num_children", type=int, default=3)
     parser.add_argument("--max_steps", type=int, default=5)
+    parser.add_argument("--dry_run", action="store_true")
+    parser.add_argument("--api_key", type=str, default=None)
+    parser.add_argument(
+        "--llm_model",
+        default=os.getenv("KICONNECT_MODEL"),
+        help="LLM Model name. Can also be set with KICONNECT_MODEL.",
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=None,
+        help="Sampling temperature, for example 0.7.",
+    )
+    parser.add_argument(
+        "--max_tokens",
+        type=int,
+        default=None,
+        help="Maximum completion tokens.",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=600.0,
+        help="Request timeout in seconds. Default: 600.",
+    )
 
     # BEAVER arguments
     parser.add_argument("--glove_embed", type=int, default=None)
@@ -240,32 +275,27 @@ def _run_cmd(argv):
     beaver_run_kwargs["instance_context_fn"] = instance_context_fn
     beaver_run_kwargs["grammar"] = cfg.get("grammar")
     beaver_run_kwargs["semantic_symbol"] = cfg.get("semantic_symbol")
+
+    # set GPU
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_uuid or ""
+    if torch.cuda.is_available():
+        print(f"[DEBUG] Using GPU {torch.cuda.get_device_name()} with properties {torch.cuda.get_device_properties()}")
+    else:
+        print(f"[INFO] CUDA is unavailable, using CPU")
     
-    # ── Call beaver.run() ──────────────────────────────────────────────────
-    # import beaver
+    # add indices to the dataset
+    for i, (prompt) in enumerate(prompts):
+        prompt["idx"] = i
 
-    # # set GPU
-    # os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_uuid or ""
-    # if torch.cuda.is_available():
-    #     print(f"[DEBUG] Using GPU {torch.cuda.get_device_name()} with properties {torch.cuda.get_device_properties()}")
-    # else:
-    #     print(f"[INFO] CUDA is unavailable, using CPU")
+    tpm_opt_run_kwargs["dataset"] = prompts
 
-    # beaver.run(
-    #     prompts=prompts,
-    #     constraint_fn=constraint_fn,
-    #     check_call_fn=check_call_fn,
-    #     cache=cfg.get("cache", False),
-    #     cache_dataset_name=cfg.get("cache_dataset_name"),
-    #     instance_context_fn=instance_context_fn,
-    #     grammar=cfg.get("grammar"),
-    #     semantic_symbol=cfg.get("semantic_symbol"),
-    #     model=args.model,
-    #     **run_kwargs,
-    # )
+    code_info = tpm_optimizer.run(
+        beaver_run_kwargs=beaver_run_kwargs,
+        **tpm_opt_run_kwargs,
+    )
 
-    print(f"[DEBUG] beaver_run_kwargs: {beaver_run_kwargs}")
-    print(f"[DEBUG] tpm_opt_run_kwargs: {tpm_opt_run_kwargs}")
+    for i, (code_path, code_results, code_summary) in enumerate(code_info):
+        print(f"[INFO] Position {i+1}: Code Path - {code_path}, Lower Bound - {code_summary['avg_lb']}, Upper Bound - {code_summary['avg_ub']}")
 
     return
 
