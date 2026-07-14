@@ -351,10 +351,10 @@ def _run_inner(
                 f.write(f"{idx},{lower},{upper},{num_transitions}\n")
         all_data = get_log_data(log_dir)
         if all_data:
-            summarize_log_data(all_data, log_dir)
+            summary = summarize_log_data(all_data, log_dir)
             summarize_profile_data(log_dir)
 
-        return results
+        return results, summary
     finally:
         sys.stdout = _orig_stdout
         sys.stderr = _orig_stderr
