@@ -38,7 +38,7 @@ def get_profile_data(run_logs_folder: Path):
     return all_profile_data
 
 
-def summarize_profile_data(run_logs_folder: Path):
+def summarize_profile_data(run_logs_folder: Path, verbose: bool = False):
     profile_json_files = [
         f for f in os.listdir(run_logs_folder) if f.endswith(".profile.json")
     ]
@@ -88,8 +88,9 @@ def summarize_profile_data(run_logs_folder: Path):
 
         # print("Average Timing Profiles over transitions (in seconds):")
         # print(json.dumps(avg_profiles, indent=4))
-        print("Average Timing Profiles over tasks (in seconds):")
-        print(json.dumps(file_avg_profiles, indent=4))
+        if verbose:
+            print("Average Timing Profiles over tasks (in seconds):")
+            print(json.dumps(file_avg_profiles, indent=4))
         # print("Max Timing Profiles over tasks (in seconds):")
         # print(json.dumps(file_max_profiles, indent=4))
 
@@ -109,7 +110,7 @@ def get_log_data(log_folder: Path):
 
 
 def summarize_log_data(
-    all_data, run_logs_folder: Path, use_median: bool = False, threshold: float = 0.9
+    all_data, run_logs_folder: Path, use_median: bool = False, threshold: float = 0.9, verbose: bool = False
 ):
     num_instances = len(all_data)
 
@@ -157,45 +158,46 @@ def summarize_log_data(
     }
 
     # Print summary
-    print(f"\n{'=' * 50}")
-    print(f"Summary for {num_instances} instances ({num_no_data} had no transition data)")
-    print(f"{'=' * 50}")
-    print(
-        f"{metric_label} transitions to completion: {summary['avg_transitions_to_completion']:.2f}"
-    )
-    print(f"{metric_label} UB :                     {summary['avg_ub']:.6f}")
-    print(f"{metric_label} LB :                     {summary['avg_lb']:.6f}")
-    print(f"{metric_label} UB-LB:                   {summary['avg_ub_minus_lb']:.6f}")
-    print(f"Max transitions:             {summary['max_transitions']}")
-    print(f"Min transitions:             {summary['min_transitions']}")
-    print(f"\nConstraint Satisfaction (threshold={threshold}, over {num_with_data} instances with data):")
-    print(
-        f"  Satisfied (UB >= {threshold}):     {num_satisfied} ({pct_satisfied:.1f}%)"
-    )
-    print(
-        f"  Unsatisfied (UB < {threshold}):    {num_unsatisfied} ({pct_unsatisfied:.1f}%)"
-    )
-    if num_no_data > 0:
+    if verbose:
+        print(f"\n{'=' * 50}")
+        print(f"Summary for {num_instances} instances ({num_no_data} had no transition data)")
+        print(f"{'=' * 50}")
         print(
-            f"  No data (no transitions):  {num_no_data}"
+            f"{metric_label} transitions to completion: {summary['avg_transitions_to_completion']:.2f}"
         )
-    print(f"{'=' * 50}\n")
+        print(f"{metric_label} UB :                     {summary['avg_ub']:.6f}")
+        print(f"{metric_label} LB :                     {summary['avg_lb']:.6f}")
+        print(f"{metric_label} UB-LB:                   {summary['avg_ub_minus_lb']:.6f}")
+        print(f"Max transitions:             {summary['max_transitions']}")
+        print(f"Min transitions:             {summary['min_transitions']}")
+        print(f"\nConstraint Satisfaction (threshold={threshold}, over {num_with_data} instances with data):")
+        print(
+            f"  Satisfied (UB >= {threshold}):     {num_satisfied} ({pct_satisfied:.1f}%)"
+        )
+        print(
+            f"  Unsatisfied (UB < {threshold}):    {num_unsatisfied} ({pct_unsatisfied:.1f}%)"
+        )
+        if num_no_data > 0:
+            print(
+                f"  No data (no transitions):  {num_no_data}"
+            )
+        print(f"{'=' * 50}\n")
 
-    # Dev results
-    if final_ub:
-        print(f"Min UB: {min(final_ub):.6f}, Max UB: {max(final_ub):.6f}")
-        ub_idx = np.argsort(final_ub)
-        print(f"Min 10 UB instances: {ub_idx[:10]}")
-        print(f"Max 10 UB instances: {ub_idx[-10:]}")
-        print(f"Min LB: {min(final_lb):.6f}, Max LB: {max(final_lb):.6f}")
-        lb_idx = np.argsort(final_lb)
-        print(f"Min 10 LB instances: {lb_idx[:10]}")
-        print(f"Max 10 LB instances: {lb_idx[-10:]}")
-    if transitions:
-        print(f"Min Transitions: {min(transitions)}, Max Transitions: {max(transitions)}")
-        trans_idx = np.argsort(transitions)
-        print(f"Min 10 Transitions: {trans_idx[:10]}")
-        print(f"Max 10 Transitions: {trans_idx[-10:]}")
+        # Dev results
+        if final_ub:
+            print(f"Min UB: {min(final_ub):.6f}, Max UB: {max(final_ub):.6f}")
+            ub_idx = np.argsort(final_ub)
+            print(f"Min 10 UB instances: {ub_idx[:10]}")
+            print(f"Max 10 UB instances: {ub_idx[-10:]}")
+            print(f"Min LB: {min(final_lb):.6f}, Max LB: {max(final_lb):.6f}")
+            lb_idx = np.argsort(final_lb)
+            print(f"Min 10 LB instances: {lb_idx[:10]}")
+            print(f"Max 10 LB instances: {lb_idx[-10:]}")
+        if transitions:
+            print(f"Min Transitions: {min(transitions)}, Max Transitions: {max(transitions)}")
+            trans_idx = np.argsort(transitions)
+            print(f"Min 10 Transitions: {trans_idx[:10]}")
+            print(f"Max 10 Transitions: {trans_idx[-10:]}")
 
     # Save summary to JSON
     summary_path = run_logs_folder / "summary.json"
