@@ -10,7 +10,6 @@ import functools
 import traceback
 import types
 
-from openai import OpenAI
 import httpx
 import numpy as np
 import torch
