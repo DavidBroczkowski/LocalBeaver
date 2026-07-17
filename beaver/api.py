@@ -351,10 +351,15 @@ def _run_inner(
                 f.write(f"{idx},{lower},{upper},{num_transitions}\n")
         all_data = get_log_data(log_dir)
         if all_data:
-            summary = summarize_log_data(all_data, log_dir)
-            summarize_profile_data(log_dir)
+            #FIXME: verbose is hard coded right now, change that to dynamic, for both lines here
+            summary = summarize_log_data(all_data, log_dir, verbose=False)
+            summarize_profile_data(log_dir, verbose = False)
 
-        return results, summary
+        return {
+            "results": results,
+            "summary": summary,
+            "log_dir": str(log_dir.resolve())
+        }
     finally:
         sys.stdout = _orig_stdout
         sys.stderr = _orig_stderr
