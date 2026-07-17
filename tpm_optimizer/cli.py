@@ -72,6 +72,7 @@ _TPM_OPT_RUN_KEYS = frozenset(
         "temperature",
         "max_tokens",
         "timeout",
+        "base_url",
     }
 )
 
@@ -139,7 +140,7 @@ def _run_cmd(argv):
     # Optimizer arguments
     parser.add_argument("--code_path", type=str, required=True)
     parser.add_argument("--dataset", type=str, required=True)
-    parser.add_argument("--num_instances_llm", type=int, default=100)
+    parser.add_argument("--num_instances_llm", type=int, default=25)
     parser.add_argument("--num_instances_verify", type=int, default=500)
     parser.add_argument("--num_children", type=int, default=3)
     parser.add_argument("--max_steps", type=int, default=5)
@@ -149,6 +150,11 @@ def _run_cmd(argv):
         "--llm_model",
         default=os.getenv("KICONNECT_MODEL"),
         help="LLM Model name. Can also be set with KICONNECT_MODEL.",
+    )
+    parser.add_argument(
+        "--base-url",
+        type=str,
+        help=f"API base URL.",
     )
     parser.add_argument(
         "--temperature",
@@ -184,7 +190,6 @@ def _run_cmd(argv):
     parser.add_argument("--debug_ids", type=str, default=None)
 
     parser.add_argument("--gen_length", type=int, default=None)
-    parser.add_argument("--temperature", type=float, default=None)
     parser.add_argument("--top_p", type=float, default=None)
     parser.add_argument("--top_k", type=int, default=None)
     parser.add_argument("--max_iterations", type=int, default=None)
@@ -294,8 +299,8 @@ def _run_cmd(argv):
         **tpm_opt_run_kwargs,
     )
 
-    for i, (code_path, code_results, code_summary) in enumerate(code_info):
-        print(f"[INFO] Position {i+1}: Code Path - {code_path}, Lower Bound - {code_summary['avg_lb']}, Upper Bound - {code_summary['avg_ub']}")
+    for i, (info) in enumerate(code_info):
+        print(f"[INFO] Position {i+1}: Code Path - {info['path']}, Lower Bound - {info['summary']['avg_lb']}, Upper Bound - {info['summary']['avg_ub']}")
 
     return
 
