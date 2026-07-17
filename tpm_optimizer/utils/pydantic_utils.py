@@ -9,6 +9,7 @@ class Agent:
         model: str,
         system: str ,
         max_tokens: int,
+        base_url: str,
         api_key: str | None = None,
         temperature: float | None = None,
         timeout: float | None = None,
@@ -16,7 +17,7 @@ class Agent:
         self.model = model
         self.system = system
         self.max_tokens= max_tokens
-        self.base_url = #FIXME: you know how to fix
+        self.base_url = base_url
         self.api_key = api_key
         self.temperature = temperature
         self.timeout = timeout
@@ -25,7 +26,6 @@ class Agent:
         self.prompt_tokens = 0
         self.cached_tokens = 0
         self.total_tokens = 0
-
 
     def read_prompt(self, parts: list[str]) -> str:
         if parts:
@@ -48,6 +48,7 @@ class Agent:
             "messages": messages,
         }
 
+
         if self.temperature is not None:
             payload["temperature"] = self.temperature
         if self.max_tokens is not None:
@@ -58,7 +59,6 @@ class Agent:
 
     def extract_completion(self, response_data: dict) -> str:
         try:
-            print(f"[INFO] Full repsonse content: {response_data}")
             content = response_data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError):
             return json.dumps(response_data, indent=2, ensure_ascii=False)
@@ -68,17 +68,15 @@ class Agent:
 
         return json.dumps(content, indent=2, ensure_ascii=False)
 
-    def extract_token_usage(self, response_data: dict) -> None:
+    def _extract_token_usage(self, response_data: dict) -> None:
         try:
             self.completion_tokens += response_data["usage"]["completion_tokens"]
-            self.reasoning_tokens += response_data["usage"]["completion_tokens_details"]["reasoning_tokens"]
             self.prompt_tokens += response_data["usage"]["prompt_tokens"]
-            self.cached_tokens += response_data["usage"]["prompt_tokens_details"]["cached_tokens"]
             self.total_tokens += response_data["usage"]["total_tokens"]
         except(KeyError, IndexError, TypeError) as e:
             import traceback
             print(f"[ERROR] Token Usage Extraction failed due to a formatting error: {e}")
-            traceback.print_exec()
+            traceback.print_exc()
 
 
 
@@ -134,10 +132,12 @@ class Agent:
                 "Accept": "application/json",
             },
         )
-
+        
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                return json.loads(response.read().decode("utf-8"))
+                response_data = json.loads(response.read().decode("utf-8"))
+                self._extract_token_usage(response_data)
+                return response_data
         except urllib.error.HTTPError as error:
             details = error.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"API returned HTTP {error.code}: {details}") from error
