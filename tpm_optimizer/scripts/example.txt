@@ -1,1 +1,0 @@
-tpm-opt run --experiment experiments/sort/sort.yaml --code_path experiments/sort/sort_program.py --dataset /home/david.broczkowski/Beaver/experiments/sort/data/sort.json --glove_embed 0 
