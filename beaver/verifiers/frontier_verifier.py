@@ -442,11 +442,19 @@ class FrontierVerifier(BaseVerifier):
         config["frontier_topk"] = self.frontier_topk
         config["frontier_scoring_strategy"] = self.frontier_scoring_strategy
 
-        if self.verbose:
-            print("[DEBUG] Retrieving glove embeddings...")
-        config["idx_emb"] = get_glove_embeddings(self.tokenizer.idx_w, "data/glove.840B.300d.txt")
-        if self.verbose:
-            print("[DEBUG] Retrieved glove embeddings")
+        # failsafe
+        if self.glove_embed:
+            if self.verbose:
+                print("[DEBUG] Retrieving glove embeddings...")
+            try:
+                config["idx_emb"] = get_glove_embeddings(self.tokenizer.idx_w, "data/glove.840B.300d.txt")
+            except Exception:
+                try:
+                    config["idx_emb"] = get_glove_embeddings(self.tokenizer.idx_w, "external/beaver/data/glove.840B.300d.txt")
+                except Exception:
+                    print("[ERROR] Failed to retrieve glove embeddings")
+            if self.verbose:
+                print("[DEBUG] Retrieved glove embeddings")
 
         config["vocab_size"] = len(self.tokenizer.idx_w)
 
