@@ -450,7 +450,7 @@ class FrontierVerifier(BaseVerifier):
                 config["idx_emb"] = get_glove_embeddings(self.tokenizer.idx_w, "data/glove.840B.300d.txt")
             except Exception:
                 try:
-                    config["idx_emb"] = get_glove_embeddings(self.tokenizer.idx_w, "external/beaver/data/glove.840B.300d.txt")
+                    config["idx_emb"] = get_glove_embeddings(self.tokenizer.idx_w, "external/localbeaver/data/glove.840B.300d.txt")
                 except Exception:
                     print("[ERROR] Failed to retrieve glove embeddings")
             if self.verbose:
