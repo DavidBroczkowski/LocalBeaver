@@ -32,11 +32,10 @@ classifiers = ["fastapi", "uvicorn", "pydantic", "detoxify", "semgrep"]
 
 [project.scripts]
 beaver = "beaver.cli:main"
-tpm-opt = "tpm_optimizer.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["beaver*", "tpm_optimizer*"]
+include = ["beaver*"]
 
 [tool.setuptools.package-data]
 beaver = [
