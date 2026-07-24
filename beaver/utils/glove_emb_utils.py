@@ -64,7 +64,7 @@ def get_glove_embeddings(
     Output:
         - a 2d NumPy array containing the GLoVE embeddings for the given idx_w by the token's id
     """
-    if name.startswith("data"):
+    if name.startswith("data") or name.startswith("external"):
         glove_vectors = LocalGlove(name, idx_w)
     else:
         glove_vectors = gensim.downloader.load(name)
