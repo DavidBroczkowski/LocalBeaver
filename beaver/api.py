@@ -84,6 +84,7 @@ def run(
 
     Args:
         prompts: List of dicts with at least ``"question"`` key.
+        vocab_size: an int, the size of the input vocabulary
         constraint_fn: ``(instance, seq) -> bool``. Required.
         check_call_fn: ``(instance, seqs, token_lists) -> np.ndarray[bool]``.
             Optional pre-filter called before ``constraint_fn`` to skip sequences
@@ -100,7 +101,9 @@ def run(
             varies per instance and is included in the cache key. Only used
             when ``cache=True``.
         model: a loaded nn.Module
-        verifier: ``"frontier"`` or ``"sampling"``.
+        model_type: a str, the type of model to verify - Must be ``"transformer``", ``"program"``, or ``"code"``
+        model_args: a str, contains the path to the JSON file containing the arguments used to train the model
+        verifier: ``"frontier"``, ``"sampling"``, or ``"logits"`` - the verifier type to use
         gen_length: Max tokens per sequence.
         temperature / top_p / top_k: Sampling parameters.
         max_iterations: Max verification iterations per instance.
@@ -113,10 +116,13 @@ def run(
         use_chat_template: Apply model chat template.
         num_shots: Few-shot examples to prepend.
         system_message / fewshot_messages: Chat template content.
+        glove_embed: a bool, whether to use glove embeddings for the input or not
+        seed: an int, the seed to use for random value generation
         grammar: Grammar name (looked up in ``beaver/grammars/``).
         semantic_symbol: Symbol used to mark semantic completion (e.g. ``">>``").
         log_dir: Directory for run logs.
         verbose: Verbose output.
+        gpu_uuid: an int, the UUID of the GPU to use
 
     Returns:
         List of per-instance result dicts.
