@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "beaver"
-version = "0.1.0"
-description = "BEAVER: Formal verification bounds for LLM generation"
+version = "0.2.0"
+description = "LocalBEAVER: Formal verification bounds for local LLM generation"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
