@@ -231,11 +231,6 @@ class LogitsVerifier(BaseVerifier):
                 idx_t=self.tokenizer.idx_t,
                 **model_args_dict,
             )
-        #FIXME: move this transformer code to the frontier verifier!
-        # elif kwargs["model_type"] == "transformer":
-        #     if 'n_ctx' not in model_args_dict and 'max_length' in model_args_dict:
-        #         model_args_dict['n_ctx'] = model_args_dict['max_length']
-        #     loaded_model = Transformer(d_vocab=len(self.tokenizer.idx_w), **model_args_dict)
         else:
             raise ValueError(
                 f"model_type must be \"program\" or \"transformer\", got {kwargs['model_type']!r}"
