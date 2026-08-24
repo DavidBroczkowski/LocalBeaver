@@ -21,6 +21,7 @@ import io
 import json
 import signal
 import subprocess
+import traceback
 import sys
 import threading
 import time
@@ -323,7 +324,7 @@ def run_experiment(
     if result["ok"]:
         _log(f"  Experiment {exp_name} completed successfully")
         return True
-
+        
     _log(f"  Experiment {exp_name} failed: {result['error']}", "ERROR")
     return False
 
