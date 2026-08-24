@@ -13,6 +13,7 @@ import types
 import httpx
 import numpy as np
 import torch
+import sys
 
 from beaver.utils.utils import log_json
 from beaver.utils.tokenizer_utils import initialize_llguidance
@@ -166,15 +167,20 @@ def model_generate_next_token_logprobs(instance, continuation):
             if _w.verbose:
                 print("[DEBUG] Cache miss — running forward pass...")
             
-            #FIXME: add this param
             if _w.model_type == "code":
                 import importlib.util
 
                 spec = importlib.util.spec_from_file_location("_dynamic_module", _w.model_name)
                 mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(mod)
-
-                code_logits = torch.tensor(mod.run(instance["prompt"]), dtype=torch.float32) # does not have PAD and UNK, 2 less than expected
+                try:
+                    spec.loader.exec_module(mod)
+                    raw_logits = mod.run(instance["prompt"])
+                except SystemExit as e:
+                    # generated model code may call sys.exit()/exit(); SystemExit isn't an
+                    # Exception, so letting it propagate kills this pool worker's task loop
+                    # without ever returning a result, deadlocking imap_unordered forever
+                    raise RuntimeError(f"model code at {_w.model_name} called sys.exit({e.code!r})") from e
+                code_logits = torch.tensor(raw_logits, dtype=torch.float32) # does not have PAD and UNK, 2 less than expected
             
                 d_vocab_out = len(_w.tokenizer.idx_t)
                 unembed_mask = torch.tensor([t in ("<unk>", "<pad>") for t in _w.tokenizer.idx_t])  # [d_vocab_out]
