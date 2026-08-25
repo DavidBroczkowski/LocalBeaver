@@ -281,6 +281,16 @@ In this project, Transformer Program Models may be referenced as Transformer Pro
 This project is support by the [UA Ruhr Research Center Trustworthy Data Science and Security](https://rc-trust.ai/) and by [UA Ruhr](https://www.uaruhr.de/en/) as the work for this project was supported by the UA Ruhr Fellowship. I give my sincerest thanks to these organizations for their support and guidance of this project.
 
 ## 🔖 Citation
+```bibtex
+@inproceedings{
+    friedman2023learning,
+    title={Learning Transformer Programs},
+    author={Dan Friedman and Alexander Wettig and Danqi Chen},
+    booktitle={Thirty-seventh Conference on Neural Information Processing Systems},
+    year={2023},
+    url={https://openreview.net/forum?id=Pe9WxkN8Ff}
+}
+```
 
 ```bibtex
 @misc{suresh2025beaverefficientdeterministicllm,
