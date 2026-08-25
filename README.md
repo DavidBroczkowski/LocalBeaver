@@ -1,25 +1,24 @@
 <h1 align="center">
   <img width="60" alt="beaver" src="https://beaverframework.pages.dev/assets/icon.png" />
-  &nbsp;Beaver Framework
+  &nbsp;LocalBeaver Framework
 </h1>
 
 <p align="left">
-    🌐&nbsp;<a href="https://beaverframework.pages.dev">Website</a>
-    | 📊&nbsp;<a href="https://beaverframework.pages.dev/#leaderboard">Leaderboard</a>
-    | 📄&nbsp;<a href="https://arxiv.org/abs/2512.05439">Paper</a>
-    | 💻&nbsp;<a href="https://github.com/uiuc-focal-lab/Beaver">GitHub</a>
+    🌐&nbsp;<a href="https://beaverframework.pages.dev">Original BEAVER Website</a>
+    | 📄&nbsp;<a href="https://arxiv.org/abs/2512.05439">Original BEAVER Paper</a>
+    | 💻&nbsp;<a href="https://github.com/uiuc-focal-lab/Beaver">BEAVER GitHub</a>
 </p>
 
 <p>
     <a href="https://arxiv.org/abs/2512.05439"><img src="https://img.shields.io/badge/arXiv-2512.05439-b31b1b.svg"></a>
     <a href="https://www.python.org/"><img alt="Python" src="https://img.shields.io/badge/Python-3.10+-1f425f.svg?color=purple"></a>
-    <a href="LICENSE.md"><img alt="License" src="https://img.shields.io/badge/License-CC_BY--SA_4.0-blue"></a>
+    <a href="LICENSE.md"><img alt="BEAVER License" src="https://img.shields.io/badge/License-CC_BY--SA_4.0-blue"></a>
 </p>
 
 ## ℹ️ About
-
-- **BEAVER** computes certified probability bounds `[PLB, PUB]` on the likelihood that an LLM violates a behavioral constraint — guaranteed to bracket the true probability.
-- Unlike sampling-based evaluation, BEAVER's **FrontierVerifier** uses branch-and-bound search over the token tree to produce provably correct intervals that tighten with more compute.
+- **LocalBEAVER** is a modified version of **BEAVER** created by Suresh, Wadwha, Banerjee, and Singh that computes certified probability bounds `[PLB, PUB]` on the likelihood that a <i>local</i> LLM satisfies a behavioral constraint — guaranteed to bracket the true probability.
+- BEAVER's **FrontierVerifier** uses branch-and-bound search over the token tree to produce provably correct intervals that tighten with more compute.
+- A logits based verifier uses the log probabilities to produce probability bounds as a form of validation.
 - Evaluate any binary constraint: security vulnerabilities, toxicity, privacy leakage, hallucination, stereotype, and more.
 
 ## 📚 Features
@@ -30,14 +29,14 @@
 | 🌲 Branch-and-bound **FrontierVerifier** reaches tight bounds with far fewer model queries than sampling |
 | 📐 Optional EBNF grammar masking (Python, Rust, C, Go) for syntax-constrained generation                 |
 | ⚡ SQLite constraint-result caching — avoid re-running expensive checks                                  |
-| 🤖 Works with any HuggingFace model via a vLLM backend                                                   |
+| 🤖 Use any local non-autoregressive model architecture you want                                          |
+| 📋 Use the built in NLTK tokenizer, or code up your own.                                                 |
+| 🧤 Contains support for GLoVe embeddings                                                                 |
 | 🔌 Plug in any binary constraint — one Python function is all you need                                   |
 
 ## ⚙️ Requirements
 
 - Python 3.10+
-- A CUDA-capable GPU (vLLM does not run on CPU)
-- [vLLM](https://github.com/vllm-project/vllm) installed and accessible on `PATH`
 
 ## 🚀 Quick Start
 
@@ -45,113 +44,90 @@
 pip install -e .
 ```
 
-## 🖥️ Running BEAVER
+## 🖥️ Running LocalBEAVER
 
 BEAVER can be used in two ways: as a **Python API** or as a **CLI tool**.
 
-### Backend: vLLM Server
+## 👀 Example Usage - CLI
 
-BEAVER uses [vLLM](https://github.com/vllm-project/vllm) to serve models. You have two options:
+### 1 - Setting Up Your Experiment
+First, choose an experiment you would like to run. 
+We currently support the following experiments:
+```
+- conll - the CoNLL 2003 NER task
+- reverse - Reversing a list of integers
+- sort - Sorting a list of integers
+```
+and are working on porting over the rest of the experiments from the original BEAVER paper to this version.
+You may also additionally write a custom experiment via a custom constraint. See the bottom for more details.
+Ensure that your experiment has a valid .yaml config as well, which can also be found at the bottom. 
 
-**Option 1 — Automatic server (`auto_server=True`) (Recommended)**
+### 2 - Your Model
+LocalBeaver supports to use of both a PyTorch checkpoint as a .pt file and the use of a .py file in the special case of a TransformerProgram. 
+When using your model, you must define its architecture and link it to the specific verifier you are using. 
+We recommend creating a python file in the beaver/utils folder that contains this architecture. 
+The forward() command is required for all architectures.
+Once you have created this file, find the Python file for the verifier you will be using. 
+For Frontier, this is beaver/verifiers/frontier_verifier.py
+When declaring the class, you will see that it loads the model here. 
+Use the Python file with your architecture to load your PyTorch checkpoint and pass it forward through the program.
 
-Pass `auto_server=True` to `beaver.run()` (or `--auto_server` on the CLI) and BEAVER will start and stop the vLLM server for you, using the default flags from `beaver/configs/models/default.yaml`.
+Please note, LocalBeaver currently only supports non-autoregressive models, or models that produce all logits at once and independently of other logits.
+We are working to bring support for autoregressive models as well.
 
-**Option 2 — Manual server**
+### 3 - Your Model Arguments
+As you will be implementing your own architecture, you may need arguments about <i>how</i> the model was learned to avoid dimension conflicts. 
+For the sort, reverse, and conll tasks, this is the case. 
+We provide the model_args parameter to solve this issue.
+It expects a JSON object that contains key value pairs with information about the dimensionality of layers of the model.
+You may find it necessary to use this for your architecture as well.
+For any model generated by the TransformerProgram code, you will need the corresponding .json file generated after learning the model.
+That is the input for the model_args parameter.
 
-Start vLLM yourself before running BEAVER, then point BEAVER at it with `server_addr`. Example for `google/gemma-3-12b-it`:
+### 4 - Running Verification
+LocalBeaver features an increased number of parameters due to the nature of local models. 
+To run beaver, see the following command as an example:
+```
+beaver run
+    --experiment experiments/sort/sort.py
+    --model experiments/sort/sort.pt
+    --model_type transformer
+    --model_args experiments/sort/learning_args.json
+```
+All parameters shown here are <b>required</b>. 
+There are many other parameters, and a full list can be found in beaver/cli.py.
 
-```bash
-vllm serve google/gemma-3-12b-it \
-    --port 8091 \
-    --max-logprobs -1 \
-    --max-model-len 4092 \
-    --gpu-memory-utilization 0.85 \
-    --enable-prefix-caching \
-    --max-num-seqs 256 \
-    --logprobs-mode processed_logprobs \
-    --return-tokens-as-token-ids
+Batch commands can also be used to run experiments. 
+A YAML file is required for the config of this batch experiment. 
+An example can be found at configs/batches/tpm_batch.yaml.
+Use the following example command to run a batch experiment:
+```
+beaver rct-batch --batch configs/batches/tpm_batch.yaml
 ```
 
-> **Flag notes:**
->
-> - `--max-logprobs -1` and `--logprobs-mode processed_logprobs` and `--return-tokens-as-token-ids` are **required** — BEAVER needs full-vocabulary logprobs to perform its branch-and-bound search.
-> - `--gpu-memory-utilization`, `--enable-prefix-caching`, and `--max-num-seqs` are performance flags that significantly speed up computation; tune them to your hardware.
+## 👀 Example Usage - Python API
+LocalBeaver can also be ran as an API. 
+When ran as an API, it requires all required parameters the CLI requires, plus those required parameters that the experimental .py file provides.
+This includes the parameters:
+```
+prompts - a dict, contains your inputs, with a minimum of a "inputs" key with your input for each
+constraint_fn - the function used to check the constraint as binary
+```
 
-## 👀 Example Usage
-
-### Python API
-
+For example:
 ```python
 import beaver
 
 results = beaver.run(
-    prompts=[{"prompt": "Write a Python function to parse user input."}],
+    prompts=[{"inputs": ["2", "3", "1"]}],
     constraint_fn=lambda instance, seq: valid_prefix(seq),  # Your prefix closed constraint here
-    model="meta-llama/Llama-3.1-8B-Instruct",
-    auto_server=True,
-    gen_length=64,
-    epsilon=0.05,
+    experiment=experiments/sort/sort.py,
+    model=experiments/sort/sort.pt,
+    model_type=transformer,
+    model_args=experiments/sort/learning_args.json
 )
 
 # Each result: {"idx": 0, "lower_bound": 0.91, "upper_bound": 0.97, "transition": 42, ...}
-```
-
-```python
-# Connect to a running vLLM server instead
-results = beaver.run(
-    prompts=[{"prompt": "Write a Python function to parse user input."}],
-    constraint_fn=lambda instance, seq: "eval(" not in seq,
-    model="meta-llama/Llama-3.1-8B-Instruct",
-    server_addr="http://localhost:8091",
-    gen_length=64,
-    epsilon=0.05,
-)
-```
-
-### CLI
-
-```bash
-# Single experiment (auto-start server)
-beaver run \
-    --experiment experiments/enron/enron.yaml \
-    --model meta-llama/Llama-3.1-8B-Instruct \
-    --auto_server
-
-# Single experiment (connect to running server)
-beaver run \
-    --experiment experiments/enron/enron.yaml \
-    --model meta-llama/Llama-3.1-8B-Instruct \
-    --server_addr http://localhost:8091
-
-# Multi-model batch
-beaver batch --batch configs/batches/my_batch.yaml
-
-# Summarize logs
-beaver logs logging/logs_20250225123456/
-```
-
-## 🧪 Reproducing Paper Experiments
-
-The `experiments/` folder contains all experiments from the [paper](https://arxiv.org/abs/2512.05439) and [leaderboard](https://beaverframework.pages.dev/#leaderboard). Each experiment has a YAML config and a Python constraint file.
-
-Available experiments: `enron` (privacy), `secure_code` (security), `toxicity`, `stereotype`, `gsm_symbolic` (correctness).
-
-To reproduce the full leaderboard, use the batch config:
-
-```bash
-beaver batch --batch configs/batches/new_leaderboard.yaml
-```
-
-This runs all leaderboard experiments across a broad set of instruction-tuned models. Edit `new_leaderboard.yaml` to select the specific models you want to evaluate (many are commented out by default).
-
-To run a single experiment:
-
-```bash
-beaver run \
-    --experiment experiments/toxicity/toxicity.yaml \
-    --model meta-llama/Llama-3.1-8B-Instruct \
-    --auto_server
 ```
 
 ## 📋 Logging & Results
@@ -167,9 +143,6 @@ logging/logs_20260316185322/
 ├── summary.json             # Aggregate statistics across all instances
 ├── console.log              # Full console output captured during the run
 ├── profiling_summary.json   # Timing breakdowns (per-transition and per-instance)
-├── server_cmd.txt           # vLLM server command (if auto_server was used)
-├── server_config.json       # Resolved server configuration
-├── server.log               # vLLM server stdout/stderr
 ├── <idx>.jsonl              # Per-instance transition log (one JSON object per step)
 └── <idx>.profile.json       # Per-instance timing profile (one entry per step)
 ```
@@ -191,38 +164,36 @@ beaver logs logging/logs_20260316185322/
 
 This prints aggregate statistics (average bounds, transition counts, constraint satisfaction) and saves `summary.json` and `profiling_summary.json` to the log directory.
 
-## 📦 Built-in Datasets
+## 📦 Built-in Experiments
 
-BEAVER ships with the following datasets used in the paper:
-
-- **enron** — Privacy leakage: does the model reproduce personal information from the Enron email corpus?
-- **secure_code** — Security: does the model generate code with known vulnerabilities (CWE-level checks)?
-- **toxicity** — Safety: does the model produce toxic or harmful text?
-- **stereotype** — Fairness: does the model generate stereotypical statements about demographic groups?
-- **gsm_symbolic** — Correctness: does the model produce the correct answer to symbolic math problems?
+LocalBEAVER supports the following experiments:
+```
+- conll - the CoNLL 2003 NER task
+- reverse - Reversing a list of integers
+- sort - Sorting a list of integers
+```
+All necessary files, including models and example run scripts, are given for these experiments.
+All experiments from the original Beaver code are not supported by LocalBeaver, however, we are working to add support for them. 
 
 ## ✍️ Writing a Custom Constraint
 
-Each prompt dict must have a `"prompt"` key (string). Optionally include per-instance `"system_prompt"` and/or `"fewshot_messages"` to override the global defaults when using chat mode.
+Each prompt dict must have a `"inputs"` key (string). Prompts here are not required as for LocalBeaver, transformers are expected to be explicitly trained on a task, contrary to LLMs that take in typically a sequence of words (tokens) and output a sequence of words. 
 
+An example of the reverse task Python experiment file would be:
 ```python
 # experiments/my_eval/my_eval.py
 
-def load_prompts(**kwargs) -> list[dict]:
+def load_prompts() -> list[dict]:
     return [
         {
-            "prompt": f"What is {i}+{i}?",
-            "answer": 2*i,
-            # Optional per-instance overrides:
-            # "system_prompt": "You are a math tutor.",
-            # "fewshot_messages": [{"prompt": "1+1?", "response": "2"}],
+            "inputs": ["2", "3", "1"],
+            "tags": ["1", "3", "2"],
         }
-        for i in range(100)
     ]
 
 def constraint_fn(instance: dict, sequence: str) -> bool:
     """True = acceptable, False = violation."""
-    pass
+    return sequence.split() == instance["tags"]
 
 def check_call_fn(instance, decoded_sequences, token_lists):
     """Optional fast pre-filter — skip expensive checks on short prefixes."""
@@ -248,18 +219,12 @@ epsilon: 0.05
 max_workers: 8
 ```
 
-```bash
-beaver run --experiment experiments/my_eval/experiment.yaml \
-           --model meta-llama/Llama-3.1-8B-Instruct \
-           --server_addr http://localhost:8000
-```
-
 <details>
-<summary><b>BEAVER Arguments</b></summary>
+<summary><b>LocalBEAVER Non-Required Arguments</b></summary>
 
 | Argument                          | Default           | Description                                                           |
 | --------------------------------- | ----------------- | --------------------------------------------------------------------- |
-| `verifier`                        | `frontier`        | `frontier` (branch-and-bound) or `sampling` (Monte Carlo)             |
+| `verifier`                        | `frontier`        | `frontier` (branch-and-bound) or `logits` (raw log probabilities)     |
 | `gen_length`                      | `32`              | Max tokens per generated sequence                                     |
 | `epsilon`                         | `0.01`            | Convergence threshold — stop when `PUB − PLB ≤ ε`                     |
 | `max_iterations`                  | `100`             | Hard iteration cap per instance                                       |
@@ -270,14 +235,32 @@ beaver run --experiment experiments/my_eval/experiment.yaml \
 | `use_grammar`                     | `false`           | Apply EBNF grammar mask during expansion                              |
 | `grammar`                         | —                 | `rust` \| `python` \| `c` \| `go` \| path to `.lark` file             |
 | `temperature` / `top_p` / `top_k` | `1.0 / 0.99 / -1` | Sampling distribution parameters                                      |
-| `use_chat_template`               | `true`            | Apply the model's chat template to prompts                            |
-| `system_message`                  | —                 | Global system message (can be overridden per-instance via `system_prompt` key) |
 | `fewshot_messages`                | `[]`              | Global few-shot examples (can be overridden per-instance via `fewshot_messages` key) |
 | `max_workers`                     | `16`              | Parallel worker processes                                             |
 | `cache`                           | `false`           | Enable SQLite constraint-result cache                                 |
-| `auto_server`                     | `true`            | Start/stop vLLM server automatically                                  |
+| `start_idx`                       | `0`               | The start index of the dataset to run                                 |
+| `end_idx`                         | `len(dataset)`    | The end index of the dataset to run (default is entire dataset)       |
+| `debug_ids`                       | `[]`              | Specific ids of the dataset to run                                    |
+| `verbose`                         | `false`           | Prints additional debugging information                               |
+| `glove_embed`                     | `false`           | Enable the use of GLoVe embeddings for inputs                         |
+| `gpu_uuid`                        | `None`            | Enable use of specific GPU - default is use of CPU instead            |
+| `seed`                            | `0`               | Seed used for generation of random values                             |
+| `vocab_size`                      | `None`            | Enables use of top-(vocab_size) most frequent tokens, when not used, None signals to include all tokens that occur at least once |
 
 </details>
+
+## 😢 Known Issues
+This project is still in the developmental phase and therefore is missing many features that generalize this algorithm.
+We ask to direct questions or help to David Broczkowski, reachable at broczkod@lafayette.edu. 
+The following issues persist in the project:
+- Lack of support for experiments provided in the original Beaver publication.
+- Model architecture should have an easier and more streamlined way to be used - the user should not have to create python files and manually add their architecture in.
+- LocalBeaver should dynamically decide which arguments it needs from model_args when calling the architecture
+- vLLM support should be readded so that users do not have to use multiple versions of Beaver.
+- The "Sampling" verifier is currently non-functional.
+- Support should be expanded to autoregressive models and models that utilize prompts instead of an explicitly trained task. 
+
+We apologize for these shortcomings and hope to provide these in the future. 
 
 ## 🔖 Citation
 
