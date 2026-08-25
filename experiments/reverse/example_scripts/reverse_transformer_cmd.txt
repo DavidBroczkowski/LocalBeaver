@@ -1,0 +1,1 @@
+beaver run --experiment experiments/reverse/reverse.yaml --model experiments/reverse/standard.pt --verifier frontier --glove_embed 0 --max_workers 1 --model_args experiments/reverse/learned_args_transformer.json  --model_type transformer

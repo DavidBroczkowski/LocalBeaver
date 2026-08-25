@@ -1,0 +1,1 @@
+beaver run --experiment experiments/reverse/reverse.yaml --model experiments/reverse/tpm.pt --verifier frontier --glove_embed 0 --max_workers 1 --model_args experiments/reverse/learned_args_tpm.json --model_type program

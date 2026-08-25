@@ -13,4 +13,3 @@ gen_length: 32
 epsilon: 0.05
 max_workers: 1
 glove_embed: 0
-gpu_uuid: GPU-96f047f6-0272-02db-e089-678debe69d9b
