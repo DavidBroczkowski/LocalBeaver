@@ -1,0 +1,1 @@
+beaver run --experiment experiments/sort/sort.yaml --model experiments/sort/model.pt --verifier frontier --glove_embed 0  --max_workers 1 --model_args experiments/sort/learned_args_tpm.json --model_type program
