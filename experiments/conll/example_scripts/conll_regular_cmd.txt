@@ -1,0 +1,1 @@
+beaver run --experiment experiments/conll/conll.yaml --model experiments/conll/standard.pt --verifier frontier --glove_embed 1 --max_workers 1 --model_args experiments/conll/learned_args_transformer.json --vocab_size 10000 --model_type transformer
